@@ -1,0 +1,55 @@
+import os, sys, glob
+import numpy as np
+import cv2 as cv
+
+cell_size = [8, 8]
+block_size = [2, 2]
+nbins = 9
+
+paths = [
+	'notes',
+	'unknown'
+]
+
+n_data_per_path = []
+hogs = []
+
+# extrair HOGs de imagens de treinamento
+for path in paths:
+
+	n_data_found = 0
+
+	for file_path in glob.glob(os.path.join('training_data', path, "*")):
+		#print(file_path)
+		n_data_found = n_data_found+1
+		im = cv.imread(file_path)
+		hog = cv.HOGDescriptor(
+			_winSize=(im.shape[1] // cell_size[1] * cell_size[1], 
+				      im.shape[0] // cell_size[0] * cell_size[0]),
+            _blockSize=(block_size[1] * cell_size[1],
+                        block_size[0] * cell_size[0]),
+            _blockStride=(cell_size[1], cell_size[0]),
+            _cellSize=(cell_size[1], cell_size[0]),
+            _nbins=nbins)
+		hogs.append(hog.compute(im))
+
+	n_data_per_path.append(n_data_found)
+
+training_data = np.matrix(hogs, dtype=np.float32)
+
+# gera labels e modelo para cada path
+for i in range(len(paths)):
+
+	labels = []
+	for j in range(len(paths)):
+		if i==j:
+			labels = labels + ([1] * n_data_per_path[j])
+		else:
+			labels = labels + ([0] * n_data_per_path[j])
+
+	model = cv.ml.SVM_create()
+	model.setType(cv.ml.SVM_C_SVC)
+	model.setKernel(cv.ml.SVM_LINEAR)
+	model.setTermCriteria((cv.TERM_CRITERIA_MAX_ITER, 100, 1e-6))
+	model.train(training_data, cv.ml.ROW_SAMPLE, labels)
+	model.save(os.path.join('models', paths[i]+'.xml'))

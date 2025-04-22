@@ -1,10 +1,16 @@
-import os, sys, numpy
+import os, sys
+import numpy as np
 import cv2 as cv
+
+import helpers
+import segmentation
+import svm
 
 def check_img(img):
 	imgS = cv.resize(img, (int(len(img[0])/2), int(len(img)/2)))
 	cv.imshow("Image", imgS);
 	cv.waitKey(0)
+	cv.destroyAllWindows()
 
 if len(sys.argv) < 2:
 	print("Please enter the image path as an argument.")
@@ -23,7 +29,7 @@ th, img_bin = cv.threshold(img, 0, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
 
 # detecção de pautas
 
-img_bin = numpy.float32(img_bin)
+img_bin = np.float32(img_bin)
 hist = cv.reduce(img_bin, 1, cv.REDUCE_SUM)
 
 staff_range = min(hist)*1.1 # numero magico... arrumar depois
@@ -48,8 +54,14 @@ for n in staff_rows:
 
 grouped_staff_rows.append(l)
 
-for line in grouped_staff_rows:
-	print(f"Staff row found at: {line[0]}-{line[-1]}")
+bounds = segmentation.segment_staves(img, grouped_staff_rows)
+
+adjusted_staff_rows = []
+for i in range(len(bounds)):
+	r = []
+	for j in range(5):
+		r.append([h-bounds[i][0] for h in grouped_staff_rows[i*5+j]])
+	adjusted_staff_rows.append(r)
 
 # remoção de pautas:
 
@@ -58,4 +70,10 @@ for i in staff_rows:
 		if img[i-1][j] == 255:
 			img[i][j] = 255
 
-check_img(img)
+separated_staves = []
+for b in bounds:
+	separated_staves.append(img[b[0]:b[1]][:])
+
+pyramid = helpers.pyramid(separated_staves[0])
+for i in pyramid:
+	check_img(i)
