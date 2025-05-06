@@ -101,15 +101,24 @@ def find_objs(image):
 	im_pyramid = list(helpers.pyramid(image))
 	for i in range(len(im_pyramid)):
 
+		knn_data = []
+		knn_data_pos = []
+
 		for (x, y, window) in helpers.sliding_window(im_pyramid[i], stepSize=16, windowSize=(32, 64)):
 			
-			knn_data = []
 			resized = cv.resize(window, (20, 20))
 			knn_data.append(np.array(resized, np.float32).reshape(-1))
-			nearest = knn.findNearest(np.array(knn_data, np.float32), k=5)
+			knn_data_pos.append([x, y])
 			
-			if nearest[1][0] == 24:
-				clone = im_pyramid[i].copy()
-				cv.rectangle(clone, (x, y), (x+32, y+64), (0, 255, 0), 2)
-				cv.imshow("Window", clone)
-				cv.waitKey(100)
+		nearest = knn.findNearest(np.array(knn_data, np.float32), k=5)
+		clone = im_pyramid[i].copy()
+		clone = cv.cvtColor(clone, cv.COLOR_GRAY2BGR)
+		for j in range(len(nearest[1])):
+			if nearest[1][j] == 24:
+				cv.rectangle(clone, 
+					(knn_data_pos[j][0], knn_data_pos[j][1]), 
+					(knn_data_pos[j][0]+32, knn_data_pos[j][1]+64), 
+					(0, 0, 255), 
+					2)
+		cv.imshow("Window", clone)
+		cv.waitKey(0)
