@@ -4,7 +4,7 @@ import cv2 as cv
 
 import helpers
 import segmentation
-import svm
+import obj_detection
 
 def check_img(img):
 	imgS = cv.resize(img, (int(len(img[0])/2), int(len(img)/2)))
@@ -74,6 +74,4 @@ separated_staves = []
 for b in bounds:
 	separated_staves.append(img[b[0]:b[1]][:])
 
-pyramid = helpers.pyramid(separated_staves[0])
-for i in pyramid:
-	check_img(i)
+obj_detection.find_objs(separated_staves[0])
