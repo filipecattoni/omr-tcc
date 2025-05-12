@@ -1,71 +1,62 @@
-import os, sys, glob
+import os, sys, glob, time
+from enum import Enum
 import numpy as np
 import cv2 as cv
-import time
 
 import helpers
 
-def generate_model():
+class Symbols(Enum):
+	empty                = 0
+	unknown              = 1
+	note_whole           = 2
+	note_half_upright    = 3
+	note_half_flipped    = 4
+	note_quarter_upright = 5
+	note_quarter_flipped = 6
+	rest_whole_half      = 7
+	rest_quarter         = 8
+	rest_eighth          = 9
+	rest_sixteenth       = 10
+	rest_thirtysecond    = 11
+	accent_accented      = 12
+	accent_marcato       = 13
+	accent_staccato      = 14
+	accidental_flat      = 15
+	accidental_natural   = 16
+	accidental_sharp     = 17
+	clef_alto            = 18
+	clef_bass            = 19
+	clef_treble          = 20
+	timesig_common       = 21
+	timesig_cut          = 22
 
-	paths = [
-		'Empty',
-		'Accent',
-		'Accents/dynamic',
-		'Accents/fermata',
-		'Accents/Harmonic',
-		'Accents/marcato',
-		'Accents/mordent',
-		'Accents/staccatissimo',
-		'Accents/staccato',
-		'Accents/stopped',
-		'Accents/Tenuto',
-		'Accents/turn',
-		'AltoCleff',
-		'BarLines',
-		'BassClef',
-		'Beams',
-		'Breve',
-		'Dots',
-		'Flat',
-		'Naturals',
-		'NoteHeadsFlags/demisemiquaver',
-		'NoteHeadsFlags/hemidemisemiquaver',
-		'NoteHeadsFlags/quaver',
-		'NoteHeadsFlags/semiquaver',
-		'Notes',
-		'NotesFlags',
-		'NotesOpen',
-		'Relation/Chord',
-		'Relation/Glissando',
-		'Relation/Slur-Tie',
-		'Relation/Tuplet',
-		'Relations',
-		'Rests/demisemiquaver',
-		'Rests/doublewhole',
-		'Rests/half-whole',
-		'Rests/hemidemisemiquaver',
-		'Rests/quaver',
-		'Rests/semiquaver',
-		'Rests1',
-		'Rests2',
-		'SemiBreve',
-		'Sharps',
-		'TimeSignatureL',
-		'TimeSignatureN',
-		'TimeSignaturesL/CwithBar',
-		'TimeSignaturesL/CwithoutBar',
-		'TimeSignaturesN/0',
-		'TimeSignaturesN/1',
-		'TimeSignaturesN/2',
-		'TimeSignaturesN/3',
-		'TimeSignaturesN/4',
-		'TimeSignaturesN/5',
-		'TimeSignaturesN/6',
-		'TimeSignaturesN/7',
-		'TimeSignaturesN/8',
-		'TimeSignaturesN/9',
-		'TrebleClef'
-	]
+paths = [
+	'empty',
+	'unknown',
+	'notes/whole',
+	'notes/half_upright',
+	'notes/half_flipped',
+	'notes/quarter_upright',
+	'notes/quarter_flipped',
+	'rests/whole-half',
+	'rests/quarter',
+	'rests/eighth',
+	'rests/sixteenth',
+	'rests/thirtysecond',
+	'accents/accented',
+	'accents/marcato',
+	'accents/staccato',
+	'accidentals/flat',
+	'accidentals/natural',
+	'accidentals/sharp',
+	'clefs/alto',
+	'clefs/bass',
+	'clefs/treble',
+	'time_sigs/common',
+	'time_sigs/cut'
+]
+
+def generate_model():
 
 	n_data_per_path = []
 	train_ims = []
@@ -91,6 +82,7 @@ def generate_model():
 
 	knn = cv.ml.KNearest_create()
 	knn.train(model_train_data)
+	knn.save('model.yml')
 
 	return knn
 
@@ -104,20 +96,20 @@ def find_objs(image):
 		knn_data = []
 		knn_data_pos = []
 
-		for (x, y, window) in helpers.sliding_window(im_pyramid[i], stepSize=16, windowSize=(32, 64)):
+		for (x, y, window) in helpers.sliding_window(im_pyramid[i], stepSize=8, windowSize=(40, 80)):
 			
 			resized = cv.resize(window, (20, 20))
 			knn_data.append(np.array(resized, np.float32).reshape(-1))
 			knn_data_pos.append([x, y])
 			
-		nearest = knn.findNearest(np.array(knn_data, np.float32), k=5)
+		nearest = knn.findNearest(np.array(knn_data, np.float32), k=1)
 		clone = im_pyramid[i].copy()
 		clone = cv.cvtColor(clone, cv.COLOR_GRAY2BGR)
 		for j in range(len(nearest[1])):
-			if nearest[1][j] == 24:
+			if Symbols.note_quarter_flipped.value in nearest[2][j]:
 				cv.rectangle(clone, 
 					(knn_data_pos[j][0], knn_data_pos[j][1]), 
-					(knn_data_pos[j][0]+32, knn_data_pos[j][1]+64), 
+					(knn_data_pos[j][0]+40, knn_data_pos[j][1]+80), 
 					(0, 0, 255), 
 					2)
 		cv.imshow("Window", clone)
